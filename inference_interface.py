@@ -1,6 +1,8 @@
 import numpy as np
 import h5py
 from datetime import datetime
+from json import dumps, loads
+from glob import glob
 
 try:
     import multihist as mh
@@ -186,3 +188,36 @@ def template_to_numpy(file_name, histogram_names=None):
             histograms.append(np.array(f["templates/"+histogram_name]) )
         return bins, histograms, axis_names, histogram_names
 
+
+def numpy_to_toyfile(file_name, numpy_arrays_and_names, metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')}, array_metadatas=None):
+    with h5py.File(file_name, "w") as f:
+        for k,md in metadata.items(): 
+            f.attrs[k]= dumps(md)
+        if array_metadatas is None: 
+            array_metadatas = [{} for _ in numpy_arrays_and_names]
+        for (numpy_array, array_name), array_metadata in zip(numpy_arrays_and_names, array_metadatas):
+            ds = f.create_dataset("fits/"+array_name,data=numpy_array, dtype=numpy_array.dtype)
+            for k,md in array_metadata.items():
+                ds.attrs[k] = dumps(md)
+
+
+
+
+def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None):
+    filenames = sorted(glob(file_name_pattern))
+    dtype_prototype = None
+    results = {}
+    for fn in filenames: 
+        with h5py.File(fn, "r") as f:
+            if numpy_array_names is None: 
+                numpy_array_names = list(f["fits"].keys())
+                results = {rn:[] for rn in numpy_array_names}
+            for i,nan in enumerate(numpy_array_names): 
+                res = f["fits/"+nan][()]
+                if dtype_prototype is None:
+                    dtype_prototype = res.dtype
+                assert res.dtype == dtype_prototype
+                results[nan].append(res)
+    for i,nan in enumerate(numpy_array_names):
+        results[nan] = np.concatenate(results[nan])
+    return results
