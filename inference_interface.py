@@ -221,3 +221,44 @@ def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None):
     for i,nan in enumerate(numpy_array_names):
         results[nan] = np.concatenate(results[nan])
     return results
+
+def dict_to_structured_array(d):
+    """
+        Function that reads a dict and transforms it to a structured numpy array of length 1
+        input: 
+        d-- dict 
+        output: 
+        structured array with names equal to sorted(keys of d), and values equal to the values
+    """
+    dtype = [(k,type(i)) for k,i in sorted(d.items())]
+    ret = np.array(tuple(i for k,i in sorted(d.items())), dtype=dtype)
+    return ret
+
+def toydata_to_file(file_name, datasets_array, dataset_names, overwrite_existing_file=True,
+                    metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')} ):   
+    """
+        Function to store toy data (in the form of numpy structured arrays) in a hdf5 file
+
+        datasets_array: list of list of datasets. (So each element is a list of datasets-- calibration, science, ancillary) 
+        dataset_names: list of the names of each dataset (so e.g. data_sci, data_cal, data_anc) toyMC true generator parameters may also be stored this way. 
+        if overwrite_existing_file is true, a new file is created overwriting the old, otherwise, the file is created if absent and appended to otherwise. 
+    """
+    if overwrite_existing_file or not path.exists(file_name):
+        mode = "w"
+    else:
+        mode = "a"
+    n_datasets = len(datasets_array)
+    n_datasets_prev = 0 
+    with h5py.File(file_name, mode) as f: 
+        if mode=="a":
+            n_datasets_prev = loads(f.attrs["n_datasets"])
+            assert dataset_names == loads(f.attrs["dataset_names"]) #otherwise the saving underneath will go wrong
+        f.attrs["n_datasets"] = dumps(n_datasets+n_datasets_prev)
+        f.attrs["dataset_names"] = dumps(dataset_names)
+        for k,i in metadata.items():
+            f.attrs[k] = i
+        
+        for i in range(n_datasets):
+            for j, (dataset, dataset_name) in enumerate(zip(datasets_array[i],dataset_names)):
+                f.create_dataset("{:d}/{:s}".format(i+n_datasets_prev,dataset_name), data=dataset)
+
