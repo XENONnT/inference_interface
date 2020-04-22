@@ -234,6 +234,11 @@ def dict_to_structured_array(d):
     ret = np.array(tuple(i for k,i in sorted(d.items())), dtype=dtype)
     return ret
 
+def structured_array_to_dict(sa):
+    ret = {n:sa[n][0] for n in sa.dtype.names}
+    return ret
+
+
 def toydata_to_file(file_name, datasets_array, dataset_names, overwrite_existing_file=True,
                     metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')} ):   
     """
@@ -261,4 +266,24 @@ def toydata_to_file(file_name, datasets_array, dataset_names, overwrite_existing
         for i in range(n_datasets):
             for j, (dataset, dataset_name) in enumerate(zip(datasets_array[i],dataset_names)):
                 f.create_dataset("{:d}/{:s}".format(i+n_datasets_prev,dataset_name), data=dataset)
+
+def toydata_from_file(file_name,datasets_to_load=None):
+    """
+        function to load toy data from file to array of structured numpy arrays. For error-checking, the name structure of the datasets is also included
+    """
+    datasets_array = []
+    with h5py.File(file_name,"r") as f: 
+        dataset_names = loads(f.attrs["dataset_names"])
+        n_datasets = loads(f.attrs["n_datasets"])
+        if datasets_to_load is None:
+            dataset_iterator = range(n_datasets)
+        else:
+            dataset_iterator = datasets_to_load
+        for i in dataset_iterator:
+            dataset_array = []
+            for dataset_name in dataset_names:
+                dataset_array.append(f["{:d}/{:s}".format(i,dataset_name)][()])
+            datasets_array.append(dataset_array)
+    
+    return datasets_array, dataset_names
 
