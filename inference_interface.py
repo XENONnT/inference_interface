@@ -44,7 +44,8 @@ def template_to_multihist(file_name, hist_name=None):
     """
         Function that loads a template into the multihist format
         str file_name : name of template file
-        str hist_name: name of template, if None, take the first
+        str hist_name: name of template, if None, return a dict 
+        indexed by histogram names containing the histograms
     """
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
@@ -56,10 +57,14 @@ def template_to_multihist(file_name, hist_name=None):
             bins.append(np.array(b))
             bn = b.attrs.get("name", "axis{:d}".format(i))
             bin_names.append(bn)
-        ret = mh.Histdd(bins=bins, axis_names=bin_names)
         if hist_name is None:
-            ret.histogram = np.array(next(iter(f["templates"].values())))
+            ret = dict()
+            for hist_name in f["templates"]:
+                h = mh.Histdd(bins=bins, axis_names=bin_names)
+                h.histogram = np.array(f["templates/"+hist_name])
+                ret[hist_name] = h
         else:
+            ret = mh.Histdd(bins=bins, axis_names=bin_names)
             ret.histogram = np.array(f["templates/"+hist_name])
     return ret
 
@@ -286,4 +291,31 @@ def toydata_from_file(file_name,datasets_to_load=None):
             datasets_array.append(dataset_array)
     
     return datasets_array, dataset_names
+
+
+def process_templates(template_files, file_name, 
+                      histogram_handler= lambda:hs:sum(hs)):
+    """
+        Function that reads in a list of templates. 
+        For each histogram name, histogram_handler will be called 
+        on the array of the histograms with that name
+        The example function, for example, would add together histograms with the same name. 
+        str template_files : list of names of input template files
+        str file_name name of output file
+        function histogram_handler: function that takes a list of multihists and returns a multihist. 
+    """
+    histogram_dict = dict()
+    for template_file in template_files: 
+        histograms = template_to_multihist_local(template_file, hist_name=None)
+        for n,h in histograms.items():
+            if n not in histogram_dict:
+                histogram_dict[n] = []
+            histogram_dict[n].append(h)
+            
+    histogram_names = []
+    histograms = []
+    for n, hs in histogram_dict.items():
+        histogram_names.append(n)
+        histograms.append(histogram_handler(hs) )
+    multihist_to_template(histograms, file_name, histogram_names)
 
