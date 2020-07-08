@@ -294,7 +294,7 @@ def toydata_from_file(file_name,datasets_to_load=None):
 
 
 def process_templates(template_files, file_name, 
-                      histogram_handler= lambda:hs:sum(hs)):
+                      histogram_handler= lambda hs:sum(hs)):
     """
         Function that reads in a list of templates. 
         For each histogram name, histogram_handler will be called 
