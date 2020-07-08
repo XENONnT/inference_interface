@@ -306,7 +306,7 @@ def process_templates(template_files, file_name,
     """
     histogram_dict = dict()
     for template_file in template_files: 
-        histograms = template_to_multihist_local(template_file, hist_name=None)
+        histograms = template_to_multihist(template_file, hist_name=None)
         for n,h in histograms.items():
             if n not in histogram_dict:
                 histogram_dict[n] = []
