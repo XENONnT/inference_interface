@@ -319,3 +319,21 @@ def process_templates(template_files, file_name,
         histograms.append(histogram_handler(hs) )
     multihist_to_template(histograms, file_name, histogram_names)
 
+
+def get_generate_args(file_pattern):
+    filelist = glob(file_pattern)
+    list_of_generat_args = []
+    for file in filelist:
+        with h5py.File(file,"r") as f:
+            list_of_generat_args.append(f.attrs["generate_args"])
+
+    l_identical_dict_check = []
+    for item1, item2 in zip(list_of_generat_args, list_of_generat_args[1:]):
+        result = len(item1) == len(item1) and all(x in item2 for x in item1)
+        l_identical_dict_check.append(result)
+
+    if len(set(l_identical_dict_check)) != 1:
+        print("Different generate args in toys!")
+        raise SystemExit
+    else:
+        return loads(list_of_generat_args[0])
