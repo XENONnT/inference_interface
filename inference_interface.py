@@ -1,8 +1,11 @@
-import numpy as np
-import h5py
+import os
+
 from datetime import datetime
 from json import dumps, loads
 from glob import glob
+
+import h5py
+import numpy as np
 
 try:
     import multihist as mh
@@ -103,6 +106,7 @@ def get_root_hist_axis_labels(hist):
     print("ret is",ret)
     return ret
 
+
 def set_root_hist_axis_labels(hist, axis_names):
     dim = hist.GetDimension()
     if dim ==1: 
@@ -138,8 +142,6 @@ def root_to_template(root_name,
     numpy_to_template(bins, histograms, file_name, histogram_names=histogram_names, axis_names=axis_names, metadata=metadata)
 
 
-
-
 def template_to_root(template_name, histogram_names, result_root_name):
     if not HAVE_ROOT:
         raise NotImplementedError("root_to_template requires ROOT, root_numpy")
@@ -159,7 +161,6 @@ def combine_templates(templates, histogram_names,
 
 
 def numpy_to_template(bins, histograms, file_name, histogram_names=None, axis_names=None, metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')}):
-
     if histogram_names is None:
         histogram_names = ["{:d}".format(i) for i in range(len(histograms))]
     with h5py.File(file_name, "w") as f:
@@ -174,7 +175,6 @@ def numpy_to_template(bins, histograms, file_name, histogram_names=None, axis_na
         for histogram, histogram_name in zip(histograms, histogram_names):
             print("writing histogram name",histogram_name)
             dset = f.create_dataset("templates/{:s}".format(histogram_name), data=histogram)
-
 
 
 def template_to_numpy(file_name, histogram_names=None):
@@ -206,8 +206,6 @@ def numpy_to_toyfile(file_name, numpy_arrays_and_names, metadata={"version":"0.0
                 ds.attrs[k] = dumps(md)
 
 
-
-
 def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None):
     filenames = sorted(glob(file_name_pattern))
     dtype_prototype = None
@@ -227,6 +225,7 @@ def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None):
         results[nan] = np.concatenate(results[nan])
     return results
 
+
 def dict_to_structured_array(d):
     """
         Function that reads a dict and transforms it to a structured numpy array of length 1
@@ -238,6 +237,7 @@ def dict_to_structured_array(d):
     dtype = [(k,type(i)) for k,i in sorted(d.items())]
     ret = np.array([tuple(i for k,i in sorted(d.items()))], dtype=dtype)
     return ret
+
 
 def structured_array_to_dict(sa):
     ret = {n:sa[n][0] for n in sa.dtype.names}
@@ -253,7 +253,7 @@ def toydata_to_file(file_name, datasets_array, dataset_names, overwrite_existing
         dataset_names: list of the names of each dataset (so e.g. data_sci, data_cal, data_anc) toyMC true generator parameters may also be stored this way. 
         if overwrite_existing_file is true, a new file is created overwriting the old, otherwise, the file is created if absent and appended to otherwise. 
     """
-    if overwrite_existing_file or not path.exists(file_name):
+    if overwrite_existing_file or not os.path.exists(file_name):
         mode = "w"
     else:
         mode = "a"
@@ -271,6 +271,7 @@ def toydata_to_file(file_name, datasets_array, dataset_names, overwrite_existing
         for i in range(n_datasets):
             for j, (dataset, dataset_name) in enumerate(zip(datasets_array[i],dataset_names)):
                 f.create_dataset("{:d}/{:s}".format(i+n_datasets_prev,dataset_name), data=dataset)
+
 
 def toydata_from_file(file_name,datasets_to_load=None):
     """
