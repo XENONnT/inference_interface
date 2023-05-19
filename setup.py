@@ -17,7 +17,7 @@ with open('HISTORY.md') as file:
 
 setuptools.setup(
     name='inference_interface',
-    version='0.0.0',
+    version='0.0.1',
     description='Functions to read, convert and handle toyMC simulations, fit results and templates used by the XENONnT inference codes',
     author='XENONnT collaboration',
     author_email="knut.dundas.moraa@columbia.edu",
