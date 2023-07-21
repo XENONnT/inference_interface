@@ -262,8 +262,9 @@ def toydata_to_file(
     :param datasets_array: list of list of datasets.
     (So each element is a list of datasets-- calibration, science, ancillary)
     :param dataset_names: list of the names of each dataset
-    (so e.g. data_sci, data_cal, data_anc) toyMC true generator parameters may also be stored this way.
-    if overwrite_existing_file is true, a new file is created overwriting the old,
+    (so e.g. data_sci, data_cal, data_anc) toyMC true generator parameters
+    may also be stored this way.
+    If overwrite_existing_file is true, a new file is created overwriting the old,
     otherwise, the file is created if absent and appended to otherwise.
     """
     if overwrite_existing_file or not os.path.exists(file_name):
@@ -275,7 +276,8 @@ def toydata_to_file(
     with h5py.File(file_name, mode) as f:
         if mode=="a":
             n_datasets_prev = loads(f.attrs["n_datasets"])
-            assert dataset_names == loads(f.attrs["dataset_names"]) #otherwise the saving underneath will go wrong
+            # otherwise the saving underneath will go wrong
+            assert dataset_names == loads(f.attrs["dataset_names"])
         f.attrs["n_datasets"] = dumps(n_datasets+n_datasets_prev)
         f.attrs["dataset_names"] = dumps(dataset_names)
         for k, i in metadata.items():
