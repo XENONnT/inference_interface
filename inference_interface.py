@@ -243,7 +243,7 @@ def dict_to_structured_array(d):
     Return structured array with names equal to sorted(keys of d),
     and values equal to the values.
     """
-    dtype = [(k, type(i)) for k, i in sorted(d.items())]
+    dtype = [(k, float) for k, i in sorted(d.items())]
     ret = np.array([tuple(i for k, i in sorted(d.items()))], dtype=dtype)
     return ret
 
