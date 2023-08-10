@@ -276,7 +276,7 @@ def toydata_to_file(
     n_datasets = len(datasets_array)
     n_datasets_prev = 0
     with h5py.File(file_name, mode) as f:
-        if mode=="a":
+        if mode == "a":
             n_datasets_prev = loads(f.attrs["n_datasets"])
             # otherwise the saving underneath will go wrong
             assert dataset_names == loads(f.attrs["dataset_names"])
