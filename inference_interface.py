@@ -240,10 +240,12 @@ def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None):
 def dict_to_structured_array(d):
     """
     Function that reads a dict and transforms it to a structured numpy array of length 1.
+    The dict should be of the form {name1: value1, name2: value2, ...}
+    Note that the keys of the dict are sorted and values are converted to floats.
     Return structured array with names equal to sorted(keys of d),
     and values equal to the values.
     """
-    dtype = [(k, type(i)) for k, i in sorted(d.items())]
+    dtype = [(k, float) for k, i in sorted(d.items())]
     ret = np.array([tuple(i for k, i in sorted(d.items()))], dtype=dtype)
     return ret
 
@@ -274,7 +276,7 @@ def toydata_to_file(
     n_datasets = len(datasets_array)
     n_datasets_prev = 0
     with h5py.File(file_name, mode) as f:
-        if mode=="a":
+        if mode == "a":
             n_datasets_prev = loads(f.attrs["n_datasets"])
             # otherwise the saving underneath will go wrong
             assert dataset_names == loads(f.attrs["dataset_names"])
