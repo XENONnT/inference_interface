@@ -226,7 +226,7 @@ def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None,
     array_metadatas = {}
     for fn in filenames:
         with h5py.File(fn, "r") as f:
-            metadata[fn] = {k: v for k, v in f.attrs.items()}
+            metadata[fn] = {k: loads(v) for k, v in f.attrs.items()}
             array_metadatas[fn] = {}
             if numpy_array_names is None:
                 numpy_array_names = list(f["fits"].keys())
@@ -237,7 +237,7 @@ def toyfiles_to_numpy(file_name_pattern, numpy_array_names=None,
                     dtype_prototype = res.dtype
                 assert res.dtype == dtype_prototype
                 results[nan].append(res)
-                array_metadatas[fn][nan] = {k: v for k, v in f["fits/"+nan].attrs.items()}
+                array_metadatas[fn][nan] = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
 
     for nan in numpy_array_names:
         results[nan] = np.concatenate(results[nan])
