@@ -221,6 +221,10 @@ def toyfiles_to_numpy(
         file_name_pattern, numpy_array_names=None,
         return_metadata=False):
     filenames = sorted(glob(file_name_pattern))
+    if len(filenames) == 0:
+        message = "No files found with pattern {:s}".format(file_name_pattern)
+        raise FileNotFoundError(message)
+
     dtype_prototype = None
     results = {}
     metadata = {}
