@@ -255,7 +255,8 @@ def toyfiles_to_numpy(
                 if return_metadata:
                     metadata = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
                     metadata_arr = metadata_to_structured_array(metadata)
-                    results[f"metadata_{nan}"].append(np.repeat(metadata_arr, len(res)))
+                    new_entry = np.repeat(metadata_arr, len(res))
+                    results[f"metadata_{nan}"].append(new_entry)
             if return_metadata:
                 metadata = {k: loads(v) for k, v in f.attrs.items()}
                 metadata_arr = metadata_to_structured_array(metadata)
@@ -306,9 +307,9 @@ def metadata_to_structured_array(metadata: dict):
         return np.array([], dtype=[("empty", float)])
     # unpack nested dicts into top level and name them accordingly
     metadata_unpacked = deepcopy(metadata)
-    for k, v in metadata.items():
+    for k, v in sorted(metadata.items()):
         if isinstance(v, dict):
-            for k2, v2 in v.items():
+            for k2, v2 in sorted(v.items()):
                 metadata_unpacked[f"{k}_{k2}"] = v2
             del metadata_unpacked[k]
     df = pd.DataFrame([metadata_unpacked])
