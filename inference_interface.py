@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from json import dumps, loads
 from glob import glob
+from copy import deepcopy
 
 import h5py
 import numpy as np
@@ -221,6 +222,12 @@ def numpy_to_toyfile(
 def toyfiles_to_numpy(
         file_name_pattern, numpy_array_names=None,
         return_metadata=False):
+    """
+    Load toy files from pattern into numpy arrays.
+    A dictionary of numpy arrays is returned, indexed by the array names.
+    If numpy_array_names is None, all arrays are loaded.
+    If return_metadata is true, also the metadata is returned.
+    """
     filenames = sorted(glob(file_name_pattern))
     if len(filenames) == 0:
         message = "No files found with pattern {:s}".format(file_name_pattern)
@@ -228,33 +235,40 @@ def toyfiles_to_numpy(
 
     dtype_prototype = None
     results = {}
-    # metadata = {}
     array_metadatas = {}
     for fn in filenames:
         with h5py.File(fn, "r") as f:
-            metadata = {k: loads(v) for k, v in f.attrs.items()}
             array_metadatas[fn] = {}
             if numpy_array_names is None:
                 numpy_array_names = list(f["fits"].keys())
                 results = {rn:[] for rn in numpy_array_names}
                 if return_metadata:
                     results["metadata"] = []
+                    for nan in numpy_array_names:
+                        results[f"metadata_{nan}"] = []
             for i, nan in enumerate(numpy_array_names):
                 res = f["fits/"+nan][()]
                 if dtype_prototype is None:
                     dtype_prototype = res.dtype
                 assert res.dtype == dtype_prototype
                 results[nan].append(res)
+                if return_metadata:
+                    metadata = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
+                    metadata_arr = metadata_to_structured_array(metadata)
+                    results[f"metadata_{nan}"].append(np.repeat(metadata_arr, len(res)))
             if return_metadata:
-                results["metadata"].append([metadata] * len(res))
-
-                # array_metadatas[fn][nan] = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
+                metadata = {k: loads(v) for k, v in f.attrs.items()}
+                metadata_arr = metadata_to_structured_array(metadata)
+                # metadata for each result is the same, so we can just repeat
+                results["metadata"].append(np.repeat(metadata_arr, len(res)))
 
     for nan in numpy_array_names:
         results[nan] = np.concatenate(results[nan])
-    # if return_metadata:
-    #     return results, metadata, array_metadatas
-    # else:
+    if return_metadata:
+        results["metadata"] = np.concatenate(results["metadata"])
+        for nan in numpy_array_names:
+            results[f"metadata_{nan}"] = np.concatenate(results[f"metadata_{nan}"])
+
     return results
 
 
@@ -274,6 +288,32 @@ def dict_to_structured_array(d):
 def structured_array_to_dict(sa):
     ret = {n:sa[n][0] for n in sa.dtype.names}
     return ret
+
+
+def metadata_to_structured_array(metadata: dict):
+    """
+    Takes a dictionary of metadata and converts it to a structured numpy array.
+    If the dictionary contains other dictionaries,
+    these are unpacked into separate columns.
+
+    :param metadata: dictionary of metadata
+    :return: structured numpy array
+    """
+    # remove empty dicts and None values
+    metadata = {k: v for k, v in metadata.items() if v}
+    # catch empty dicts
+    if not metadata:
+        return np.array([], dtype=[("empty", float)])
+    # unpack nested dicts into top level and name them accordingly
+    metadata_unpacked = deepcopy(metadata)
+    for k, v in metadata.items():
+        if isinstance(v, dict):
+            for k2, v2 in v.items():
+                metadata_unpacked[f"{k}_{k2}"] = v2
+            del metadata_unpacked[k]
+    df = pd.DataFrame([metadata_unpacked])
+
+    return df.to_records(index=False)
 
 
 def toydata_to_file(
@@ -378,30 +418,3 @@ def get_generate_args(file_pattern):
         raise SystemExit
     else:
         return loads(list_of_generat_args[0])
-
-
-def metadata_to_numpy(metadata: dict):
-    """
-    Takes a dictionary of metadata and converts it to a structured numpy array.
-    If the dictionary contains other dictionaries,
-    these are unpacked into separate columns.
-
-    :param metadata: dictionary of metadata
-    :return: structured numpy array
-    """
-    df = pd.DataFrame([metadata])
-
-    # Unpack dictionary columns into separate columns
-    for col in df.columns:
-        if isinstance(df[col][0], dict):
-            # Check if the dictionary is empty
-            if not df[col][0]:
-                df[col] = df[col].apply(
-                    lambda x: {'placeholder': np.nan} if not x else x)
-            unpacked = df[col].apply(pd.Series)
-            unpacked.columns = [f"{col}_{subcol}" for subcol in unpacked.columns]
-            df = df.drop(col, axis=1).join(unpacked)
-    df = df.dropna(axis=1, how='all')
-    # Convert DataFrame back into a structured array
-    structured_array = df.to_records(index=False)
-    return structured_array
