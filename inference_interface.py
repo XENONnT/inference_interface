@@ -6,6 +6,7 @@ from glob import glob
 
 import h5py
 import numpy as np
+import pandas as pd
 
 try:
     import multihist as mh
@@ -227,29 +228,34 @@ def toyfiles_to_numpy(
 
     dtype_prototype = None
     results = {}
-    metadata = {}
+    # metadata = {}
     array_metadatas = {}
     for fn in filenames:
         with h5py.File(fn, "r") as f:
-            metadata[fn] = {k: loads(v) for k, v in f.attrs.items()}
+            metadata = {k: loads(v) for k, v in f.attrs.items()}
             array_metadatas[fn] = {}
             if numpy_array_names is None:
                 numpy_array_names = list(f["fits"].keys())
                 results = {rn:[] for rn in numpy_array_names}
+                if return_metadata:
+                    results["metadata"] = []
             for i, nan in enumerate(numpy_array_names):
                 res = f["fits/"+nan][()]
                 if dtype_prototype is None:
                     dtype_prototype = res.dtype
                 assert res.dtype == dtype_prototype
                 results[nan].append(res)
-                array_metadatas[fn][nan] = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
+            if return_metadata:
+                results["metadata"].append([metadata] * len(res))
+
+                # array_metadatas[fn][nan] = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
 
     for nan in numpy_array_names:
         results[nan] = np.concatenate(results[nan])
-    if return_metadata:
-        return results, metadata, array_metadatas
-    else:
-        return results
+    # if return_metadata:
+    #     return results, metadata, array_metadatas
+    # else:
+    return results
 
 
 def dict_to_structured_array(d):
@@ -372,3 +378,30 @@ def get_generate_args(file_pattern):
         raise SystemExit
     else:
         return loads(list_of_generat_args[0])
+
+
+def metadata_to_numpy(metadata: dict):
+    """
+    Takes a dictionary of metadata and converts it to a structured numpy array.
+    If the dictionary contains other dictionaries,
+    these are unpacked into separate columns.
+
+    :param metadata: dictionary of metadata
+    :return: structured numpy array
+    """
+    df = pd.DataFrame([metadata])
+
+    # Unpack dictionary columns into separate columns
+    for col in df.columns:
+        if isinstance(df[col][0], dict):
+            # Check if the dictionary is empty
+            if not df[col][0]:
+                df[col] = df[col].apply(
+                    lambda x: {'placeholder': np.nan} if not x else x)
+            unpacked = df[col].apply(pd.Series)
+            unpacked.columns = [f"{col}_{subcol}" for subcol in unpacked.columns]
+            df = df.drop(col, axis=1).join(unpacked)
+    df = df.dropna(axis=1, how='all')
+    # Convert DataFrame back into a structured array
+    structured_array = df.to_records(index=False)
+    return structured_array
