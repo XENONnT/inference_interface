@@ -227,6 +227,12 @@ def toyfiles_to_numpy(
     A dictionary of numpy arrays is returned, indexed by the array names.
     If numpy_array_names is None, all arrays are loaded.
     If return_metadata is true, also the metadata is returned.
+
+    :param file_name_pattern: pattern of files to load
+    :param numpy_array_names: list of names of arrays to load.
+        If None, all are loaded.
+    :param return_metadata: if true, also the global metadata and
+        metadata for each array is returned.
     """
     filenames = sorted(glob(file_name_pattern))
     if len(filenames) == 0:
