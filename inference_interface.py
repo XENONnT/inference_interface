@@ -266,8 +266,15 @@ def toyfiles_to_numpy(
     for nan in numpy_array_names:
         results[nan] = np.concatenate(results[nan])
     if return_metadata:
+        dtype_prototype = results["metadata"][0].dtype
+        for md in results["metadata"]:
+            assert md.dtype == dtype_prototype
         results["metadata"] = np.concatenate(results["metadata"])
+
         for nan in numpy_array_names:
+            dtype_prototype = results[f"metadata_{nan}"][0].dtype
+            for md in results[f"metadata_{nan}"]:
+                assert md.dtype == dtype_prototype
             results[f"metadata_{nan}"] = np.concatenate(results[f"metadata_{nan}"])
 
     return results
