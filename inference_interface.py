@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from json import dumps, loads
 from glob import glob
+from multihist import Hist1d, Histdd
 
 import h5py
 import numpy as np
@@ -42,38 +43,44 @@ def concatenate_fits(file_names=[], output_name="file.hdf5"):
     raise NotImplementedError()
 
 
-def template_to_multihist(file_name, hist_name=None):
+def template_to_multihist(file_name, hist_name=None, hist_to_read=Histdd):
     """
-    Function that loads a template into the multihist format
+    Function that loads a template into the Hist1d or Histdd format
     :param file_name: name of template file
-    :param hist_name: name of template, if None, return a dict
-    indexed by histogram names containing the histograms
+    :param hist_name: name of template, if None, return a dict indexed by histogram names containing the histograms
     """
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
-
-    bins = []
-    bin_names = []
+    
     with h5py.File(file_name, "r") as f:
-        for i, (k, b) in enumerate(sorted(f["bins"].items())):
-            bins.append(np.array(b))
-            bn = b.attrs.get("name", "axis{:d}".format(i))
-            bin_names.append(bn)
         if hist_name is None:
             ret = dict()
             for hist_name in f["templates"]:
-                h = mh.Histdd(bins=bins, axis_names=bin_names)
-                h.histogram = np.array(f["templates/"+hist_name])
+                if hist_to_read == Hist1d:
+                    # for 1d case, flatten the bins
+                    bins = np.array(f["bins/0"])
+                    h = mh.Hist1d.from_histogram(np.array(f["templates/" + hist_name]), bins)
+                else:
+                    bins = [np.array(f[f"bins/{i}"]) for i in range(len(f["bins"]))]
+                    bin_names = [f[f"bins/{i}"].attrs.get("name", f"axis{i}") for i in range(len(f["bins"]))]
+                    h = mh.Histdd(bins=bins, axis_names=bin_names)
+                    h.histogram = np.array(f["templates/" + hist_name])
                 ret[hist_name] = h
         else:
-            ret = mh.Histdd(bins=bins, axis_names=bin_names)
-            ret.histogram = np.array(f["templates/"+hist_name])
-    return ret
+            bins = [np.array(f[f"bins/{i}"]) for i in range(len(f["bins"]))]
+            if len(bins) == 1:
+                ret = mh.Hist1d.from_histogram(np.array(f["templates/" + hist_name]), bins[0])
+            else:
+                bin_names = [f[f"bins/{i}"].attrs.get("name", f"axis{i}") for i in range(len(f["bins"]))]
+                ret = mh.Histdd(bins=bins, axis_names=bin_names)
+                ret.histogram = np.array(f["templates/" + hist_name])
 
+    return ret
 
 def multihist_to_template(
         histograms, file_name,
         histogram_names=None,
+        hist_to_store = Histdd,
         metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')}):
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
@@ -84,11 +91,14 @@ def multihist_to_template(
             f.attrs[k] = i
         bins = histograms[0].bin_edges
         axis_names = histograms[0].axis_names
-        if axis_names is None:
-            axis_names = ["" for i in range(len(bins))]
-        for i, (b, bn) in enumerate(zip(bins, axis_names)):
-            dset = f.create_dataset("bins/{:d}".format(i), data=b)
-            dset.attrs["name"] = bn
+        if hist_to_store == Hist1d:
+            dset = f.create_dataset("bins/0", data=bins)
+        else:
+            if axis_names is None:
+                axis_names = ["" for i in range(len(bins))]
+            for i, (b, bn) in enumerate(zip(bins, axis_names)):
+                dset = f.create_dataset("bins/{:d}".format(i), data=b)
+                dset.attrs["name"] = bn
 
         for histogram, histogram_name in zip(histograms, histogram_names):
             dset = f.create_dataset(
