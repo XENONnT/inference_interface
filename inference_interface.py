@@ -51,7 +51,6 @@ def template_to_multihist(file_name, hist_name=None, hist_to_read=Histdd):
     """
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
-    
     with h5py.File(file_name, "r") as f:
         if hist_name is None:
             ret = dict()
