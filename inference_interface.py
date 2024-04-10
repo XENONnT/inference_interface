@@ -98,7 +98,7 @@ def multihist_to_template(
 def get_root_hist_axis_labels(hist):
     dim = hist.GetDimension()
     if dim == 1:
-        axes [hist.GetXaxis()]
+        axes = [hist.GetXaxis()]
     elif dim == 2:
         axes = [hist.GetXaxis(), hist.GetYaxis()]
     elif dim == 3:
@@ -113,7 +113,7 @@ def get_root_hist_axis_labels(hist):
 def set_root_hist_axis_labels(hist, axis_names):
     dim = hist.GetDimension()
     if dim == 1:
-        axes [hist.GetXaxis()]
+        axes = [hist.GetXaxis()]
     elif dim == 2:
         axes = [hist.GetXaxis(), hist.GetYaxis()]
     elif dim == 3:
