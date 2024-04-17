@@ -3,9 +3,11 @@ import os
 from datetime import datetime
 from json import dumps, loads
 from glob import glob
+from copy import deepcopy
 
 import h5py
 import numpy as np
+import pandas as pd
 
 try:
     import multihist as mh
@@ -220,32 +222,74 @@ def numpy_to_toyfile(
 def toyfiles_to_numpy(
         file_name_pattern, numpy_array_names=None,
         return_metadata=False):
+    """
+    Load toy files from pattern into numpy arrays.
+    A dictionary of numpy arrays is returned, indexed by the array names.
+    If numpy_array_names is None, all arrays are loaded.
+    If return_metadata is true, also the metadata is returned.
+
+    :param file_name_pattern: pattern of files to load
+    :param numpy_array_names: list of names of arrays to load.
+        If None, all are loaded.
+    :param return_metadata: if true, also the global metadata and
+        metadata for each array is returned.
+    """
     filenames = sorted(glob(file_name_pattern))
+    if len(filenames) == 0:
+        message = "No files found with pattern {:s}".format(file_name_pattern)
+        raise FileNotFoundError(message)
+
     dtype_prototype = None
-    results = {}
-    metadata = {}
-    array_metadatas = {}
+
+    # prepare for empty dictionary and empty list
+    if numpy_array_names is None:
+        with h5py.File(filenames[0], "r") as f:
+            numpy_array_names = list(f["fits"].keys())
+    results = {rn:[] for rn in numpy_array_names}
+    if return_metadata:
+        results["metadata"] = []
+        for nan in numpy_array_names:
+            results[f"metadata_{nan}"] = []
+
     for fn in filenames:
         with h5py.File(fn, "r") as f:
-            metadata[fn] = {k: loads(v) for k, v in f.attrs.items()}
-            array_metadatas[fn] = {}
-            if numpy_array_names is None:
-                numpy_array_names = list(f["fits"].keys())
-                results = {rn:[] for rn in numpy_array_names}
+            if not np.all(np.isin(numpy_array_names, list(f["fits"].keys()))):
+                raise ValueError(
+                    f"Not all requested arrays {numpy_array_names} "
+                    f"are present in file {fn:s}!",
+                )
             for i, nan in enumerate(numpy_array_names):
                 res = f["fits/"+nan][()]
                 if dtype_prototype is None:
                     dtype_prototype = res.dtype
                 assert res.dtype == dtype_prototype
                 results[nan].append(res)
-                array_metadatas[fn][nan] = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
+                if return_metadata:
+                    metadata = {k: loads(v) for k, v in f["fits/"+nan].attrs.items()}
+                    metadata_arr = metadata_to_structured_array(metadata)
+                    new_entry = np.repeat(metadata_arr, len(res))
+                    results[f"metadata_{nan}"].append(new_entry)
+            if return_metadata:
+                metadata = {k: loads(v) for k, v in f.attrs.items()}
+                metadata_arr = metadata_to_structured_array(metadata)
+                # metadata for each result is the same, so we can just repeat
+                results["metadata"].append(np.repeat(metadata_arr, len(res)))
 
     for nan in numpy_array_names:
         results[nan] = np.concatenate(results[nan])
     if return_metadata:
-        return results, metadata, array_metadatas
-    else:
-        return results
+        dtype_prototype = results["metadata"][0].dtype
+        for md in results["metadata"]:
+            assert md.dtype == dtype_prototype
+        results["metadata"] = np.concatenate(results["metadata"])
+
+        for nan in numpy_array_names:
+            dtype_prototype = results[f"metadata_{nan}"][0].dtype
+            for md in results[f"metadata_{nan}"]:
+                assert md.dtype == dtype_prototype
+            results[f"metadata_{nan}"] = np.concatenate(results[f"metadata_{nan}"])
+
+    return results
 
 
 def dict_to_structured_array(d):
@@ -264,6 +308,32 @@ def dict_to_structured_array(d):
 def structured_array_to_dict(sa):
     ret = {n:sa[n][0] for n in sa.dtype.names}
     return ret
+
+
+def metadata_to_structured_array(metadata: dict):
+    """
+    Takes a dictionary of metadata and converts it to a structured numpy array.
+    If the dictionary contains other dictionaries,
+    these are unpacked into separate columns.
+
+    :param metadata: dictionary of metadata
+    :return: structured numpy array
+    """
+    # remove empty dicts and None values
+    metadata = {k: v for k, v in metadata.items() if v}
+    # catch empty dicts
+    if not metadata:
+        return np.array([], dtype=[("empty", float)])
+    # unpack nested dicts into top level and name them accordingly
+    metadata_unpacked = deepcopy(metadata)
+    for k, v in sorted(metadata.items()):
+        if isinstance(v, dict):
+            for k2, v2 in sorted(v.items()):
+                metadata_unpacked[f"{k}_{k2}"] = v2
+            del metadata_unpacked[k]
+    df = pd.DataFrame([metadata_unpacked])
+
+    return df.to_records(index=False)
 
 
 def toydata_to_file(
