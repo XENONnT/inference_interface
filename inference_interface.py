@@ -81,7 +81,7 @@ def template_to_multihist(file_name, hist_name=None, hist_to_read=Histdd):
 def multihist_to_template(
         histograms, file_name,
         histogram_names=None,
-        hist_to_store = Histdd,
+        hist_to_store=Histdd,
         metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')}):
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
