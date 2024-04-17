@@ -240,18 +240,24 @@ def toyfiles_to_numpy(
         raise FileNotFoundError(message)
 
     dtype_prototype = None
-    results = {}
-    array_metadatas = {}
+
+    # prepare for empty dictionary and empty list
+    if numpy_array_names is None:
+        with h5py.File(filenames[0], "r") as f:
+            numpy_array_names = list(f["fits"].keys())
+    results = {rn:[] for rn in numpy_array_names}
+    if return_metadata:
+        results["metadata"] = []
+        for nan in numpy_array_names:
+            results[f"metadata_{nan}"] = []
+
     for fn in filenames:
         with h5py.File(fn, "r") as f:
-            array_metadatas[fn] = {}
-            if numpy_array_names is None:
-                numpy_array_names = list(f["fits"].keys())
-                results = {rn:[] for rn in numpy_array_names}
-                if return_metadata:
-                    results["metadata"] = []
-                    for nan in numpy_array_names:
-                        results[f"metadata_{nan}"] = []
+            if not np.all(np.isin(numpy_array_names, list(f["fits"].keys()))):
+                raise ValueError(
+                    f"Not all requested arrays {numpy_array_names} "
+                    f"are present in file {fn:s}!",
+                )
             for i, nan in enumerate(numpy_array_names):
                 res = f["fits/"+nan][()]
                 if dtype_prototype is None:
