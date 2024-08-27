@@ -6,7 +6,7 @@
 * Fix hist1d interface by @yuema137 in https://github.com/XENONnT/inference_interface/pull/9
 * Better treatment of empty dicts by @hammannr in https://github.com/XENONnT/inference_interface/pull/11
 
-## New Contributors
+New Contributors
 * @hammannr made their first contribution in https://github.com/XENONnT/inference_interface/pull/7
 * @yuema137 made their first contribution in https://github.com/XENONnT/inference_interface/pull/10
 
