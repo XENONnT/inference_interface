@@ -85,6 +85,9 @@ def multihist_to_template(
         metadata={"version":"0.0","date":datetime.now().strftime('%Y%m%d_%H:%M:%S')}):
     if not HAVE_MULTIHIST:
         raise NotImplementedError("template_to_multihist requires multihist")
+    if type(histograms) is dict:
+        histogram_names = sorted(histograms.keys())
+        histograms = [histograms[n] for n in histogram_names]
     if histogram_names is None:
         histogram_names = ["%i" for i in range(len(histograms))]
     with h5py.File(file_name, "w") as f:
@@ -104,6 +107,7 @@ def multihist_to_template(
         for histogram, histogram_name in zip(histograms, histogram_names):
             dset = f.create_dataset(
                 "templates/{:s}".format(histogram_name), data=histogram.histogram)
+
 
 
 def get_root_hist_axis_labels(hist):
